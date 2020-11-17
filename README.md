@@ -11,7 +11,11 @@ as the plugin command.
 ## Usage
 
 ```bash
+# For dev users
 bundle exec rails search:reindex 
+
+# For docker users
+rake search:reindex
 ```
 
 ## Feedback
