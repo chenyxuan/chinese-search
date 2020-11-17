@@ -2,7 +2,7 @@
 
 # name: chinese-search
 # about: -
-# version: 0.1
+# version: 0.2
 # authors: chenyxuan
 # url: https://github.com/chenyxuan
 
@@ -32,19 +32,9 @@ after_initialize do
           # For Japanese we should investigate using kakasi
           if ['zh_TW', 'zh_CN', 'ja'].include?(SiteSetting.default_locale) || SiteSetting.search_tokenize_chinese_japanese_korean
             require 'cppjieba_rb' unless defined? CppjiebaRb
-            mode = (purpose == :query ? :query : :mix)
-            
-            jieba_data = CppjiebaRb.segment(search_data, mode: mode)
-            sliced_data = []
-            jieba_data.each do |seg|
-              if (seg =~ /\p{Han}/) == nil
-                sliced_data.push(seg)
-              else
-                sliced_data.concat(seg.split(''))
-              end
-            end
-            data = sliced_data
-            
+            mode = (purpose == :query ? :mix : :mix)
+            data = CppjiebaRb.segment(search_data, mode: mode)
+
             # TODO: we still want to tokenize here but the current stopword list is too wide
             # in cppjieba leading to words such as volume to be skipped. PG already has an English
             # stopword list so use that vs relying on cppjieba
@@ -78,53 +68,14 @@ after_initialize do
 
           str
         end
-
+        logFile = File.new("plugin.log", "a")
+        logFile.syswrite("#{data}")
+        logFile.close
         data
       end
     end
     
-    module OverridingExecute
-      def execute(readonly_mode: Discourse.readonly_mode?)
-        if SiteSetting.log_search_queries? && @opts[:search_type].present? && !readonly_mode
-          status, search_log_id = SearchLog.log(
-            term: @term,
-            search_type: @opts[:search_type],
-            ip_address: @opts[:ip_address],
-            user_id: @opts[:user_id]
-          )
-          @results.search_log_id = search_log_id unless status == :error
-        end
-
-        # If the term is a number or url to a topic, just include that topic
-        if @opts[:search_for_id] && ['topic', 'private_messages', 'all_topics'].include?(@results.type_filter)
-          if @term =~ /^\d+$/
-            single_topic(@term.to_i)
-          else
-            begin
-              if route = Discourse.route_for(@term)
-                if route[:controller] == "topics" && route[:action] == "show"
-                  topic_id = (route[:id] || route[:topic_id]).to_i
-                  single_topic(topic_id) if topic_id > 0
-                end
-              end
-            rescue ActionController::RoutingError
-            end
-          end
-        end
-
-        find_grouped_results if @results.posts.blank?
-
-        if preloaded_topic_custom_fields.present? && @results.posts.present?
-          topics = @results.posts.map(&:topic)
-          Topic.preload_custom_fields(topics, preloaded_topic_custom_fields)
-        end
-
-        @results
-      end
-    end
-
     singleton_class.prepend OverridingPrepareData
-    prepend OverridingExecute
 
   end
 
