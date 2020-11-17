@@ -68,9 +68,7 @@ after_initialize do
 
           str
         end
-        logFile = File.new("plugin.log", "a")
-        logFile.syswrite("#{data}")
-        logFile.close
+
         data
       end
     end
