@@ -32,9 +32,13 @@ after_initialize do
           # For Japanese we should investigate using kakasi
           if ['zh_TW', 'zh_CN', 'ja'].include?(SiteSetting.default_locale) || SiteSetting.search_tokenize_chinese_japanese_korean
             require 'cppjieba_rb' unless defined? CppjiebaRb
-            mode = (purpose == :query ? :mix : :full)
-            data = CppjiebaRb.segment(search_data, mode: mode)
 
+            if purpose == :query
+              data = CppjiebaRb.segment(search_data, mode: :mix)
+            else
+              data = CppjiebaRb.segment(search_data, mode: :mix) + CppjiebaRb.segment(search_data,mode: :full)
+            end
+  
             # TODO: we still want to tokenize here but the current stopword list is too wide
             # in cppjieba leading to words such as volume to be skipped. PG already has an English
             # stopword list so use that vs relying on cppjieba
