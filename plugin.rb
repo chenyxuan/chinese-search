@@ -2,7 +2,7 @@
 
 # name: chinese-search
 # about: -
-# version: 0.2
+# version: 0.4
 # authors: chenyxuan
 # url: https://github.com/chenyxuan
 
