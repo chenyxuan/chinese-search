@@ -19,6 +19,28 @@ load File.expand_path('lib/chinese-search/engine.rb', __dir__)
 
 after_initialize do
   # https://github.com/discourse/discourse/blob/master/lib/plugin/instance.rb
+  class ::UserSearch
+    module OverridingFilter
+      def filtered_by_term_users
+        if @term.blank?
+          scoped_users
+        elsif SiteSetting.enable_names? && @term !~ /[_\.-]/
+          query = Search.ts_query(term: @term, ts_config: "simple")
+
+          scoped_users
+            .includes(:user_search_data)
+            .where("user_search_data.search_data @@ #{query}")
+            .order(DB.sql_fragment("CASE WHEN INSTR(username_lower, ?) > 0 THEN 0 ELSE 1 END ASC", @term))
+        else
+          scoped_users.where("INSTR(username_lower, :term) > 0", term: @term)
+        end
+      end
+    end
+    
+    singleton_class.prepend OverridingFilter
+    
+  end
+  
   class ::Search
     module OverridingPrepareData
       def prepare_data(search_data, purpose = :query)
